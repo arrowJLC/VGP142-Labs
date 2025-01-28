@@ -7,9 +7,10 @@ EditorBuildSettings:
   m_Scenes:
   - enabled: 1
     path: Assets/_Scenes/Level.unity
-    guid: 9fc0d4010bbf28b4594072e72b8655ab
+    guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
     path: Assets/_Scenes/WinScreen.unity
-    guid: 091317f7a7535df4ca85514f4c0cac57
+    guid: e2f32aca9aaba2b44bcd3d498eb1114e
   m_configObjects:
-    com.unity.input.settings.actions: {fileID: -944628639613478452, guid: fcbcb26bfc193964b8a62d38c0da68b9, type: 3}
+    com.unity.input.settings.actions: {fileID: -944628639613478452, guid: fa37eb59fa3040a409fdfdab01dfbb23, type: 3}
+  m_UseUCBPForAssetBundles: 0

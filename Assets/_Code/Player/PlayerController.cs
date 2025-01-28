@@ -52,7 +52,7 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
     void Start()
     {
         cc = GetComponent<CharacterController>();
-      anim = GetComponentInChildren<Animator>();
+        anim = GetComponentInChildren<Animator>();
 
         mainCamera = Camera.main;
 
@@ -87,7 +87,7 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
             curSpeed = initSpeed;
             return;
         }
-
+ 
         //grabbing fwd and right vectors for camera relative movement
         Vector3 cameraFwd = mainCamera.transform.forward;
         Vector3 cameraRight = mainCamera.transform.right;
@@ -111,7 +111,7 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
         else velocity.y = CheckJump();
 
         cc.Move(velocity);
-
+        
     }
 
     private void OnControllerColliderHit(ControllerColliderHit hit)

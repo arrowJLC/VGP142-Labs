@@ -12,11 +12,7 @@ public class CanvasManager : MonoBehaviour
     [Header("Button")]
     public Button playButton;
     public Button quitButton;
-   
 
-    [Header("Menus")]
-    public GameObject gameMenu;
-    
     // Start is called before the first frame update
     void Start()
     {
@@ -35,4 +31,3 @@ public class CanvasManager : MonoBehaviour
     }
 }
 
-   
