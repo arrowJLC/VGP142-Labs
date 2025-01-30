@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Barrier
   - EnemyProjectile
+  - Weapon
   layers:
   - Default
   - TransparentFX
