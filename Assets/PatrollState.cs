@@ -14,7 +14,7 @@ public class PatrollState : StateMachineBehaviour
     override public void OnStateUpdate(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
     {
         timer += Time.deltaTime;
-        if (timer > 10) animator.SetBool("isPatrolling", false);
+        //if (timer > 10) animator.SetBool("isPatrolling", false);
 
     }
 

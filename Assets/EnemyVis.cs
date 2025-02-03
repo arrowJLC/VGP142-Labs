@@ -6,29 +6,29 @@ public class EnemyVisibility : MonoBehaviour
     public Transform player;
     private MeshRenderer mr;
     public Renderer enemyRenderer;
-    public float fieldOfViewAngle = 45f; 
-    public float maxSightDistance = 20f; 
+    public float fieldOfViewAngle = 45f;
+    public float maxSightDistance = 20f;
     private Material enemyMaterial;
-    public float detectionRadius = 10f; 
-    public float invisibilityDistance = 5f; 
+    public float detectionRadius = 10f;
+    public float invisibilityDistance = 5f;
     private bool enemyLookingAtPlayer = false;
 
     void Start()
     {
-        
+
         enemyRenderer = GetComponent<Renderer>();
         enemyMaterial = enemyRenderer.material;
 
-        
+
         StartCoroutine(CheckPlayerProximity());
     }
 
     void Update()
     {
-        
+
         Vector3 toPlayer = player.position - transform.position;
 
-        
+
         float angle = Vector3.Angle(transform.forward, toPlayer);
         RaycastHit hit;
         bool isPlayerVisible = angle < fieldOfViewAngle &&
@@ -38,7 +38,7 @@ public class EnemyVisibility : MonoBehaviour
         if (isPlayerVisible)
         {
             enemyRenderer.enabled = true;
-            SetTransparency(1f); 
+            SetTransparency(1f);
         }
         else
         {
@@ -55,16 +55,16 @@ public class EnemyVisibility : MonoBehaviour
             {
                 float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 
-                
+
                 enemyLookingAtPlayer = IsPlayerInFrontOfEnemy();
 
                 if (distanceToPlayer <= invisibilityDistance && !enemyLookingAtPlayer)
                 {
-                    SetEnemyVisibility(false); 
+                    SetEnemyVisibility(false);
                 }
                 else
                 {
-                    SetEnemyVisibility(true); 
+                    SetEnemyVisibility(true);
                 }
             }
 
@@ -76,7 +76,7 @@ public class EnemyVisibility : MonoBehaviour
     {
         Vector3 directionToPlayer = (player.position - transform.position).normalized;
         float dotProduct = Vector3.Dot(transform.forward, directionToPlayer);
-        return dotProduct > 0.5f; 
+        return dotProduct > 0.5f;
     }
 
     private void SetTransparency(float alpha)

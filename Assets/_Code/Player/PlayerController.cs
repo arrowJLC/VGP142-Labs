@@ -2,7 +2,6 @@ using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-
 public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActions
 {
     //controller components
@@ -10,6 +9,8 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
     ThirdPersonInputs inputs;
     Camera mainCamera;
     Animator anim;
+    
+
 
     public Transform WinCondiotionsTransform;
 
@@ -33,6 +34,7 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
     //weapon system variables
     [Header("Weapon Variables")]
     [SerializeField] private Transform weaponAttachPoint;
+    [SerializeField] private Transform defenseAttachPoint;
     Weapon weapon = null;
 
     //Test Variables
@@ -77,6 +79,7 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
     {
         cc = GetComponent<CharacterController>();
         anim = GetComponentInChildren<Animator>();
+        
 
         mainCamera = Camera.main;
         InitJump();
@@ -216,6 +219,42 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
             weapon = hit.gameObject.GetComponent<Weapon>();
             weapon.Equip(GetComponent<Collider>(), weaponAttachPoint);
         }
+
+        OnControllerColliderHitInternal?.Invoke(GetComponent<Collider>(), hit);
+        if (hit.collider.CompareTag("Shield") && weapon == null)
+        {
+            weapon = hit.gameObject.GetComponent<Weapon>();
+            weapon.Equip(GetComponent<Collider>(), defenseAttachPoint);
+        }
     }
 
+    private void OnCollisionEnter(Collision collision)
+    {
+
+        if (collision.collider.CompareTag("EnemyProjectile"))
+        {
+
+            //SceneManager.LoadScene("Level");
+            //        Debug.Log("Player hit by projectile! Scene reloaded.");
+
+
+            anim.SetTrigger("getHit");
+
+        }
+
+       
+
+        //Destroy(gameObject);
+    }
+
+    // void HandlePlayerCollision(Collider playerCollider)
+    //{
+    //    if (playerCollider.CompareTag("Player"))
+    //    {
+    //        SceneManager.LoadScene("Level");
+    //        Debug.Log("Player hit by projectile! Scene reloaded.");
+    //    }
+    //}
+
 }
+

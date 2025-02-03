@@ -19,7 +19,7 @@ public class Weapon : MonoBehaviour
 
     void OnPlayerControllerHit(Collider playerCollider, ControllerColliderHit thingThatHitPlayer)
     {
-        Debug.Log($"Player has been hit by {thingThatHitPlayer.collider.name}");
+       // Debug.Log($"Player has been hit by {thingThatHitPlayer.collider.name}");
     }
 
     public void Equip(Collider playerCollider, Transform weaponAttachPoint)
@@ -27,6 +27,15 @@ public class Weapon : MonoBehaviour
         rb.isKinematic = true;
         bc.isTrigger = true;
         transform.SetParent(weaponAttachPoint);
+        transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+        Physics.IgnoreCollision(playerCollider, bc);
+    }
+
+    public void Shield(Collider playerCollider, Transform defenseAttachPoint)
+    {
+        rb.isKinematic = true;
+        bc.isTrigger = true;
+        transform.SetParent(defenseAttachPoint);
         transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
         Physics.IgnoreCollision(playerCollider, bc);
     }
@@ -48,8 +57,10 @@ public class Weapon : MonoBehaviour
         Physics.IgnoreCollision(bc, playerCollider, false);
     }
     // Update is called once per frame
-    void Update()
-    {
 
+    
+    void Update()
+        {
+
+        }
     }
-}
