@@ -10,8 +10,6 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
     Camera mainCamera;
     Animator anim;
     
-
-
     public Transform WinCondiotionsTransform;
 
 

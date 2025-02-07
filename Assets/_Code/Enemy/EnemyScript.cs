@@ -1,63 +1,129 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class EnemyController : MonoBehaviour
 {
-    public float moveSpeed = 3f;
-    public float attackRange = 10f; // Range for shooting
-    public float attackCooldown = 2f; // Time between attacks
-    public GameObject projectilePrefab; // Reference to the projectile prefab
-    public Transform shootPoint; // The point from where the projectile will shoot
-    public float projectileSpeed = 10f; // Speed of the projectile
-    public float rotationSpeed = 5f;
+    public enum EnemyState
+    {
+        Chase, Patrol
+    }
 
+    public Transform player;
     private Animator anim;
-    private Transform player;
-    private Rigidbody rb;
+    NavMeshAgent agent;
+    Transform target;
+    public EnemyState state;
+
+    public float attackRange = 10f;
+    public float attackCooldown = 2f;
+    public GameObject projectilePrefab;
+    public Transform shootPoint;
+    public float projectileSpeed = 10f;
 
     private bool isAttacking = false;
     private float lastAttackTime;
 
     public float stoppingDistance = 1.5f;
-    public float visibilityAngle = 45f;
-    private SkinnedMeshRenderer enemyRenderer;
+
+    public Transform[] path;
+    public int pathIndex = 0;
+    public float distThreshold = 0.2f;
 
     private void Start()
     {
-        rb = GetComponent<Rigidbody>();
+
         anim = GetComponent<Animator>();
+        agent = GetComponent<NavMeshAgent>();
 
-        enemyRenderer = GetComponentInChildren<SkinnedMeshRenderer>();
-
-        player = GameObject.FindWithTag("Player").transform; // Assuming the player has the "Player" tag
-        lastAttackTime = -attackCooldown; // Ensures the enemy can attack right away at the start
+        lastAttackTime = -attackCooldown;
     }
 
-    private void Update()
+    void FixedUpdate()
     {
-        if (isAttacking) return;  // Prevent movement during attack animation
 
-        MoveTowardsPlayer();
-        CheckForAttack();
+        if (!player) return;
+
+        // Update behavior based on the current state
+        switch (state)
+        {
+            case EnemyState.Patrol:
+                PatrolBehavior();
+                break;
+
+            case EnemyState.Chase:
+                ChaseBehavior();
+                break;
+
+        }
+
+        //if (state == EnemyState.Chase)
+        //{
+        //    target = player;
+
+        //    CheckForAttack();
+
+        //    float distance = Vector3.Distance(transform.position, target.position);
+        //    Vector3 direction = (target.position - transform.position).normalized;
+
+        //    if (distance > attackRange)
+        //    {
+        //        agent.SetDestination(player.position);
+
+
+        //        anim.SetBool("isWalking", true);
+
+
+        //        if (distance > stoppingDistance)
+        //        {
+        //            anim.SetFloat("Speed", 1);
+        //        }
+        //    }
+        //    else
+        //    {
+
+        //        anim.SetBool("isWalking", false);
+        //        anim.SetFloat("Speed", 0);
+        //    }
+        //}
+
+
+        //if (state == EnemyState.Patrol)
+        //{
+        //    if (target == player) target = path[pathIndex];
+
+        //    if (Vector3.Distance(transform.position, player.position) <= attackRange)
+        //    {
+        //        (state == EnemyState.Chase);
+        //    }
+
+        //    if (agent.remainingDistance < distThreshold)
+        //    {
+        //        pathIndex++;
+        //        pathIndex %= path.Length;
+        //        target = path[pathIndex];
+        //    }
+        //}
+        //agent.SetDestination(target.position);
+
     }
-
-    private void MoveTowardsPlayer()
+    private void ChaseBehavior()
     {
-        float distance = Vector3.Distance(transform.position, player.position);
-        Vector3 direction = (player.position - transform.position).normalized;
+        target = player;
 
-        // Move and rotate if the player is outside the attack range
+         CheckForAttack();
+
+        float distance = Vector3.Distance(transform.position, target.position);
+        Vector3 direction = (target.position - transform.position).normalized;
+
         if (distance > attackRange)
         {
-            transform.Translate(direction * moveSpeed * Time.deltaTime, Space.World);
+            agent.SetDestination(player.position);
 
-            Quaternion targetRotation = Quaternion.LookRotation(direction);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
 
-            // Set walking animation
             anim.SetBool("isWalking", true);
 
-            // If the player is beyond stopping distance, keep moving
+
             if (distance > stoppingDistance)
             {
                 anim.SetFloat("Speed", 1);
@@ -65,37 +131,36 @@ public class EnemyController : MonoBehaviour
         }
         else
         {
-            // Set idle animation if in attack range
+
             anim.SetBool("isWalking", false);
             anim.SetFloat("Speed", 0);
         }
     }
-
-    private void HandleVisibility()
+    private void PatrolBehavior()
     {
-        
-        Vector3 directionToPlayer = (player.position - transform.position).normalized;
+        target = path[pathIndex];
 
-        Vector3 booForward = transform.forward;
-
-        float dotProduct = Vector3.Dot(booForward, directionToPlayer);
-
-        float angle = Mathf.Acos(dotProduct) * Mathf.Rad2Deg;
-
-        if (angle <= visibilityAngle)
+        // Transition to Chase state if player is within range
+        if (Vector3.Distance(transform.position, player.position) <= attackRange)
         {
-            enemyRenderer.enabled = true;
+            state = EnemyState.Chase;
         }
-        else
+
+        // Move to the next patrol point if the agent reaches the current one
+        if (agent.remainingDistance < distThreshold)
         {
-            enemyRenderer.enabled = false; 
+            pathIndex++;
+            pathIndex %= path.Length;
         }
+
+        anim.SetBool("isWalking", true);
+        anim.SetFloat("Speed", 1);
+        agent.SetDestination(target.position);
     }
-
 
     private void CheckForAttack()
     {
-        float distance = Vector3.Distance(transform.position, player.position);
+        float distance = Vector3.Distance(transform.position, target.position);
 
         if (distance <= attackRange && Time.time > lastAttackTime + attackCooldown && !isAttacking)
         {
@@ -105,7 +170,12 @@ public class EnemyController : MonoBehaviour
 
     private IEnumerator Shoot()
     {
+        anim.SetBool("isWalking", false);  
+        anim.SetFloat("Speed", 0);
+
         isAttacking = true;
+
+        
         anim.SetTrigger("Fire");  // Trigger the shooting animation
         lastAttackTime = Time.time; // Set the time of the last attack
 
@@ -124,19 +194,14 @@ public class EnemyController : MonoBehaviour
         }
 
         yield return new WaitForSeconds(attackCooldown);  // Cooldown time before the next attack
+
+        if (state == EnemyState.Chase)  // Only resume walking if we're still in the chase state
+        {
+            anim.SetBool("isWalking", true);
+            anim.SetFloat("Speed", 1);   // Resume walking speed animation
+        }
+
         isAttacking = false;
     }
-
-    private void OnCollisionEnter(Collision collision)
-    {
-        if (collision.gameObject.CompareTag("Enemy") && CompareTag("Player"))
-        {
-            //anim.SetBool("isDizzed", true);
-            //anim.SetFloat("isDizzed", 0);
-            //anim.SetTrigger("isDizzed");
-        }
-    }
 }
-
-
 
