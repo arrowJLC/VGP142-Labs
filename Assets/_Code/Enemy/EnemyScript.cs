@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -6,16 +8,19 @@ public class EnemyController : MonoBehaviour
 {
     public enum EnemyState
     {
-        Chase, Patrol
+        Chase, Patrol, Death
     }
 
     public Transform player;
-    private Animator anim;
+    public Animator anim;
     NavMeshAgent agent;
     Transform target;
+
+    EnemyHealthCon eh;
     public EnemyState state;
 
     public float attackRange = 10f;
+    public float maxShootDistance = 10f;
     public float attackCooldown = 2f;
     public GameObject projectilePrefab;
     public Transform shootPoint;
@@ -30,11 +35,19 @@ public class EnemyController : MonoBehaviour
     public int pathIndex = 0;
     public float distThreshold = 0.2f;
 
+    private int hitCount = 0;
+
+    private bool hasSpawnedCollectibles = false;
+
+    public List<Transform> spawnPoints;
+    public List<GameObject> dropsPrefabs;
+
     private void Start()
     {
 
         anim = GetComponent<Animator>();
         agent = GetComponent<NavMeshAgent>();
+        eh = GetComponent<EnemyHealthCon>();    
 
         lastAttackTime = -attackCooldown;
     }
@@ -44,7 +57,6 @@ public class EnemyController : MonoBehaviour
 
         if (!player) return;
 
-        // Update behavior based on the current state
         switch (state)
         {
             case EnemyState.Patrol:
@@ -55,6 +67,9 @@ public class EnemyController : MonoBehaviour
                 ChaseBehavior();
                 break;
 
+            case EnemyState.Death:
+                DeathBehavior();
+                break;
         }
 
         //if (state == EnemyState.Chase)
@@ -111,7 +126,8 @@ public class EnemyController : MonoBehaviour
     {
         target = player;
 
-         CheckForAttack();
+        CheckForAttack();
+        CheckForDeath();
 
         float distance = Vector3.Distance(transform.position, target.position);
         Vector3 direction = (target.position - transform.position).normalized;
@@ -120,21 +136,20 @@ public class EnemyController : MonoBehaviour
         {
             agent.SetDestination(player.position);
 
-
             anim.SetBool("isWalking", true);
-
 
             if (distance > stoppingDistance)
             {
                 anim.SetFloat("Speed", 1);
             }
         }
+
         else
         {
-
             anim.SetBool("isWalking", false);
             anim.SetFloat("Speed", 0);
         }
+
     }
     private void PatrolBehavior()
     {
@@ -156,6 +171,50 @@ public class EnemyController : MonoBehaviour
         anim.SetBool("isWalking", true);
         anim.SetFloat("Speed", 1);
         agent.SetDestination(target.position);
+        eh.currentHealth = 100f;
+    }
+
+    private void DeathBehavior()
+    {
+        agent.isStopped = true;
+        agent.velocity = Vector3.zero; 
+
+        if (!hasSpawnedCollectibles)
+        {
+            hasSpawnedCollectibles = true; 
+            SpawnCollectibles();
+        }
+
+        target = null;
+
+        anim.SetTrigger("Death");
+        anim.SetBool("isWalking", false);
+        anim.SetFloat("Speed", 0);
+
+        // Optionally, you can add a line here to destroy the enemy after it dies:
+        // Destroy(gameObject, 2f);  // Destroys the enemy after a delay of 2 seconds
+    }
+    //private void DeathBehavior()
+    //{
+    //    target = null;
+
+    //    anim.SetTrigger("Death");
+    //    anim.SetBool("isWalking", false);
+    //    anim.SetFloat("Speed", 0);
+    //    //agent.SetDestination(target.position);
+
+    //    SpawnCollectibles();
+    //}
+
+    void SpawnCollectibles()
+    {
+        foreach (Transform spawnPoint in spawnPoints)
+        {
+
+            GameObject collectible = dropsPrefabs[Random.Range(0, dropsPrefabs.Count)];
+
+            Instantiate(collectible, spawnPoint.position, Quaternion.identity);
+        }
     }
 
     private void CheckForAttack()
@@ -168,37 +227,59 @@ public class EnemyController : MonoBehaviour
         }
     }
 
+    private void CheckForDeath()
+    {
+        if (eh.currentHealth <= 0)
+        {
+            Debug.Log("Enemy is dead!");
+            state = EnemyState.Death;
+            StartCoroutine(WaitAndReload());
+        }
+    }
+
+    IEnumerator WaitAndReload()
+    {
+        yield return new WaitForSeconds(10f);
+        Debug.Log("Coroutine is triggered!");
+        // destroying destroys collectable ... fix first
+        //Destroy(gameObject); 
+    }
+
     private IEnumerator Shoot()
     {
-        anim.SetBool("isWalking", false);  
+        if (Vector3.Distance(transform.position, player.position) > maxShootDistance)
+        {
+            yield break;  
+        }
+
+        anim.SetBool("isWalking", false);
         anim.SetFloat("Speed", 0);
 
         isAttacking = true;
 
-        
-        anim.SetTrigger("Fire");  // Trigger the shooting animation
-        lastAttackTime = Time.time; // Set the time of the last attack
+        anim.SetTrigger("Fire");
+        lastAttackTime = Time.time;
 
-        // Instantiate the projectile
         if (projectilePrefab != null && shootPoint != null)
         {
             GameObject projectile = Instantiate(projectilePrefab, shootPoint.position, Quaternion.identity);
+            agent.velocity = Vector3.zero;
 
             // Move the projectile towards the player
             Vector3 direction = (player.position - shootPoint.position).normalized;
             Rigidbody rb = projectile.GetComponent<Rigidbody>();
             if (rb != null)
             {
-                rb.linearVelocity = direction * projectileSpeed;
+                rb.linearVelocity = direction * projectileSpeed;  
             }
         }
 
-        yield return new WaitForSeconds(attackCooldown);  // Cooldown time before the next attack
+        yield return new WaitForSeconds(attackCooldown);
 
-        if (state == EnemyState.Chase)  // Only resume walking if we're still in the chase state
+        if (state == EnemyState.Chase)
         {
             anim.SetBool("isWalking", true);
-            anim.SetFloat("Speed", 1);   // Resume walking speed animation
+            anim.SetFloat("Speed", 1);
         }
 
         isAttacking = false;

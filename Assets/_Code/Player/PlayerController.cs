@@ -1,14 +1,20 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActions
 {
     //controller components
     CharacterController cc;
     ThirdPersonInputs inputs;
+    PlayerHealthCon ph;
+
     Camera mainCamera;
-    Animator anim;
+    public Animator anim;
+
+    public EnemyController ec;
     
     public Transform WinCondiotionsTransform;
 
@@ -19,6 +25,7 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
     [SerializeField] private float maxSpeed = 15.0f;
     [SerializeField] private float moveAccel = 0.2f;
     [SerializeField] private float rotationSpeed = 30.0f;
+    public bool canMove = true;
     private float curSpeed = 5.0f;
 
     //Jump Variables
@@ -35,6 +42,22 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
     [SerializeField] private Transform defenseAttachPoint;
     Weapon weapon = null;
 
+    [Header("Weapon Controller")]
+    public GameObject SwordPolyart;
+    //public GameObject DogPolyart;
+    public bool CanAttack = true;
+    public float AttackCooldown = 1.0f;
+    public bool isAttack = false;
+    
+    public GameObject attackEffect;
+    public GameObject attackObjectPrefab;
+    public Transform attackSpawnPoint;
+    public float attackObjectLifetime = 1.5f;
+
+    public GameObject attackEffectPrefab;
+    public float attackEffectDuration = 1.5f;
+
+
     //Test Variables
     public LayerMask raycastCollisionLayer;
 
@@ -43,13 +66,14 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
 
     //Character movement
     Vector2 direction;
-    Vector3 velocity;
+    public Vector3 velocity;
 
     //this will also be calculated based on our jump values
     private float gravity;
 
     //jump input
     private bool isJumpPressed = false;
+    public bool isAttacking = false;
     //TODO: creating isJumpReleased and fixing the jump to add mechanics such as variable jump height
 
 
@@ -77,7 +101,7 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
     {
         cc = GetComponent<CharacterController>();
         anim = GetComponentInChildren<Animator>();
-        
+        ph = GetComponent<PlayerHealthCon>();
 
         mainCamera = Camera.main;
         InitJump();
@@ -116,9 +140,56 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
 
     public void OnAttack(InputAction.CallbackContext context)
     {
-        if (anim.GetCurrentAnimatorClipInfo(0)[0].clip.name.Contains("Attack")) return;
+        if (CanAttack)
+        {
+            SwordAttack();
+            if (anim.GetCurrentAnimatorClipInfo(0)[0].clip.name.Contains("Attack")) return;
+            isAttacking = true;
+            if (weapon) anim.SetTrigger("Attack");
+            attackEffect.SetActive(true);
+            if(attackEffect) Debug.Log("effect is active");
 
-        if (weapon) anim.SetTrigger("Attack");
+
+
+
+            //if (attackObjectPrefab && attackSpawnPoint)
+            //{
+            //    GameObject attackObject = Instantiate(attackObjectPrefab, attackSpawnPoint.position, Quaternion.identity);
+            //    //Destroy(attackObject, attackObjectLifetime); // Destroy after a certain time
+            //}
+
+        }
+
+
+        //if (anim.GetCurrentAnimatorClipInfo(0)[0].clip.name.Contains("Attack")) return;
+        //isAttacking = true;
+        //if (weapon) anim.SetTrigger("Attack");
+    }
+
+    public void SwordAttack()
+    {
+        isAttacking = true;
+        CanAttack = false;
+
+        //Animator anim = DogPolyart.GetComponent<Animator>();
+        //anim.SetTrigger("Attack");
+        GameObject attackEffect = Instantiate(attackEffectPrefab, SwordPolyart.transform.position, Quaternion.identity);
+
+        Destroy(attackEffect, attackEffectDuration);
+        StartCoroutine(ResetAttackCooldown());
+    }
+
+    IEnumerator ResetAttackCooldown()
+    {
+        StartCoroutine(ResetAttackBool());
+        yield return new WaitForSeconds(AttackCooldown);
+        CanAttack = true;
+    }
+
+    IEnumerator ResetAttackBool()
+    {
+        yield return new WaitForSeconds(1.0f);
+        isAttacking = false;
     }
 
     public void OnDefend(InputAction.CallbackContext context)
@@ -148,23 +219,27 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
 
     private void UpdateCharacteVelocity(Vector3 dir)
     {
-        if (direction == Vector2.zero) curSpeed = initSpeed;
+        if (canMove) 
+        {
+            if (direction == Vector2.zero) curSpeed = initSpeed;
 
-        //set velocity to desired move direction
-        velocity.x = dir.x;
-        velocity.z = dir.z;
+            //set velocity to desired move direction
+            velocity.x = dir.x;
+            velocity.z = dir.z;
 
-        //ensure we are clamped to max speed
-        curSpeed = Mathf.Clamp(curSpeed, initSpeed, maxSpeed);
+            //ensure we are clamped to max speed
+            curSpeed = Mathf.Clamp(curSpeed, initSpeed, maxSpeed);
 
-        //Debug.Log($"Player Controller current speed is : {curSpeed}");
-        //move along projected axis
-        velocity = new Vector3(velocity.x * curSpeed, velocity.y, velocity.z * curSpeed);
+            //Debug.Log($"Player Controller current speed is : {curSpeed}");
+            //move along projected axis
+            velocity = new Vector3(velocity.x * curSpeed, velocity.y, velocity.z * curSpeed);
 
-        curSpeed += moveAccel * Time.fixedDeltaTime;
+            curSpeed += moveAccel * Time.fixedDeltaTime;
 
-        if (!cc.isGrounded) velocity.y += gravity * Time.fixedDeltaTime;
-        else velocity.y = CheckJump();
+            if (!cc.isGrounded) velocity.y += gravity * Time.fixedDeltaTime;
+            else velocity.y = CheckJump();
+
+        }
     }
 
     private float CheckJump()
@@ -197,17 +272,52 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
         if (!anim.GetCurrentAnimatorClipInfo(0)[0].clip.name.Contains("Attack"))
         {
             UpdateCharacteVelocity(desiredMoveDirection);
-            cc.Move(velocity);
+
+            // Check if the CharacterController exists on the parent (enemy) instead of the player object
+            if (cc != null) // Assuming 'cc' is the CharacterController attached to the player
+            {
+                cc.Move(velocity);
+            }
+            else if (transform.parent != null) // If no CharacterController on the player, try the parent (enemy)
+            {
+                CharacterController parentController = transform.parent.GetComponent<CharacterController>();
+                if (parentController != null)
+                {
+                    parentController.Move(velocity);
+                }
+                else
+                {
+                    Debug.LogWarning("Parent GameObject does not have a CharacterController.");
+                }
+            }
         }
 
-        //rotate towards direction of movement
+        // Rotate towards the direction of movement
         if (direction.magnitude > 0)
         {
             float timeStep = rotationSpeed * Time.fixedDeltaTime;
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(desiredMoveDirection), timeStep);
         }
-
     }
+
+
+    //private void FixedUpdate()
+    //{
+    //    Vector3 desiredMoveDirection = ProjectedMoveDirection();
+
+    //    if (!anim.GetCurrentAnimatorClipInfo(0)[0].clip.name.Contains("Attack"))
+    //    {
+    //        UpdateCharacteVelocity(desiredMoveDirection);
+    //        cc.Move(velocity);
+    //    }
+
+    //    //rotate towards direction of movement
+    //    if (direction.magnitude > 0)
+    //    {
+    //        float timeStep = rotationSpeed * Time.fixedDeltaTime;
+    //        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(desiredMoveDirection), timeStep);
+    //    }
+    //}
 
     private void OnControllerColliderHit(ControllerColliderHit hit)
     {
@@ -228,23 +338,58 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
 
     private void OnCollisionEnter(Collision collision)
     {
-
         if (collision.collider.CompareTag("EnemyProjectile"))
         {
-
             //SceneManager.LoadScene("Level");
             //        Debug.Log("Player hit by projectile! Scene reloaded.");
 
+            Debug.Log("Collided with EnemyProjectile");
+            ph.TakeDamage(30f);
+            //anim.SetTrigger("getHit");
+            //canMove = false;
+            //velocity = Vector3.zero;
 
-            anim.SetTrigger("getHit");
+        }
+        
+
+        if (collision.gameObject/*collider*/.CompareTag("playerAttack"))
+        {
+            Debug.Log("Collided with Enemy");
+
+            ec.anim.SetTrigger("Hit");
+
+            //state = EnemyState.Death; // Set the enemy state to Death
 
         }
 
-       
+
 
         //Destroy(gameObject);
     }
 
+
+
+
+
+    //public void Hit()
+    //{
+
+    //}
+
+    //private void OnTriggerEnter(Collider other)
+    //{
+    //    if(other.tag == "Enemy" && isAttacking)
+    //    {
+    //        Debug.Log(other.name);
+    //        other.GetComponent<Animator>().SetTrigger("Death");
+    //    }
+    //}
+    //IEnumerator ResetAttackBool()
+    //{
+    //    //StartCoroutine(ResetAttackBool());
+    //    yield return new WaitForEndOfFrame();
+    //    isAttacking = false;
+    //}
     // void HandlePlayerCollision(Collider playerCollider)
     //{
     //    if (playerCollider.CompareTag("Player"))
