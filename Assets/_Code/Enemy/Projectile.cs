@@ -1,22 +1,27 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(Rigidbody))]
 public class Projectile : MonoBehaviour
 {
-    [SerializeField] private int damage = 1;
+    
+    //[SerializeField] private int damage = 1;
     [SerializeField, Range(1, 50)] private float lifetime;
 
- 
+    private AudioSource audioSource;
+    public AudioClip shootSound;
     public delegate void PlayerCollisionHandler(Collider playerCollider);
     public event PlayerCollisionHandler OnCollisionWithPlayer;
 
     // Start is called before the first frame update
     void Start()
     {
-        if (damage <= 0) damage = 1;
+        audioSource = GetComponent<AudioSource>();
+        //if (damage <= 0) damage = 1;
+        audioSource.PlayOneShot(shootSound);
         Destroy(gameObject, lifetime); 
     }
 

@@ -71,6 +71,15 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Pause"",
+                    ""type"": ""Button"",
+                    ""id"": ""4fdb8a73-dc24-4024-9807-ebfe59d2e207"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -194,6 +203,17 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
                     ""action"": ""Defend"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""57e784eb-a8ea-4f03-8fe8-0b4c170882cf"",
+                    ""path"": ""<Keyboard>/escape"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Pause"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -207,6 +227,7 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
         m_Overworld_DropWeapon = m_Overworld.FindAction("DropWeapon", throwIfNotFound: true);
         m_Overworld_Attack = m_Overworld.FindAction("Attack", throwIfNotFound: true);
         m_Overworld_Defend = m_Overworld.FindAction("Defend", throwIfNotFound: true);
+        m_Overworld_Pause = m_Overworld.FindAction("Pause", throwIfNotFound: true);
     }
 
     ~@ThirdPersonInputs()
@@ -278,6 +299,7 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
     private readonly InputAction m_Overworld_DropWeapon;
     private readonly InputAction m_Overworld_Attack;
     private readonly InputAction m_Overworld_Defend;
+    private readonly InputAction m_Overworld_Pause;
     public struct OverworldActions
     {
         private @ThirdPersonInputs m_Wrapper;
@@ -287,6 +309,7 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
         public InputAction @DropWeapon => m_Wrapper.m_Overworld_DropWeapon;
         public InputAction @Attack => m_Wrapper.m_Overworld_Attack;
         public InputAction @Defend => m_Wrapper.m_Overworld_Defend;
+        public InputAction @Pause => m_Wrapper.m_Overworld_Pause;
         public InputActionMap Get() { return m_Wrapper.m_Overworld; }
         public void Enable() { Get().Enable(); }
         public void Disable() { Get().Disable(); }
@@ -311,6 +334,9 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
             @Defend.started += instance.OnDefend;
             @Defend.performed += instance.OnDefend;
             @Defend.canceled += instance.OnDefend;
+            @Pause.started += instance.OnPause;
+            @Pause.performed += instance.OnPause;
+            @Pause.canceled += instance.OnPause;
         }
 
         private void UnregisterCallbacks(IOverworldActions instance)
@@ -330,6 +356,9 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
             @Defend.started -= instance.OnDefend;
             @Defend.performed -= instance.OnDefend;
             @Defend.canceled -= instance.OnDefend;
+            @Pause.started -= instance.OnPause;
+            @Pause.performed -= instance.OnPause;
+            @Pause.canceled -= instance.OnPause;
         }
 
         public void RemoveCallbacks(IOverworldActions instance)
@@ -354,5 +383,6 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
         void OnDropWeapon(InputAction.CallbackContext context);
         void OnAttack(InputAction.CallbackContext context);
         void OnDefend(InputAction.CallbackContext context);
+        void OnPause(InputAction.CallbackContext context);
     }
 }

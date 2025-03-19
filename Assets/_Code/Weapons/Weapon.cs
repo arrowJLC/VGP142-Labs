@@ -1,11 +1,19 @@
 using System.Collections;
 using UnityEngine;
+public enum WeaponType
+{
+    None,
+    Sword,
+    Wand,
+    Shield
+}
 
 [RequireComponent(typeof(Rigidbody), typeof(BoxCollider))]
 public class Weapon : MonoBehaviour
 {
     Rigidbody rb;
     BoxCollider bc;
+    public WeaponType weaponType;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()

@@ -77,4 +77,5 @@ public class WeaponController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
     public void OnJump(InputAction.CallbackContext context) { }
     public void OnDropWeapon(InputAction.CallbackContext context) { }
     public void OnDefend(InputAction.CallbackContext context) { }
+    public void OnPause(InputAction.CallbackContext context) { }
 }

@@ -1,6 +1,10 @@
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using System;
+using System.Collections;
+
 
 
 public class PlayerHealthCon : MonoBehaviour
@@ -41,9 +45,16 @@ public class PlayerHealthCon : MonoBehaviour
             pc.anim.SetTrigger("getHit");
             pc.canMove = false;
             pc.velocity = Vector3.zero;
+            StartCoroutine(respawnPlayer());
+            
         }
     }
 
+    private IEnumerator respawnPlayer()
+    {
+        yield return new WaitForSeconds(5.0f);
+        SceneManager.LoadScene("Level");
+    }
     public void Heal(float amount)
     {
         currentHealth += amount;

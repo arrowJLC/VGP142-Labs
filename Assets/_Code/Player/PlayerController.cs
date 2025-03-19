@@ -3,6 +3,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+using static UnityEngine.EventSystems.EventTrigger;
 
 public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActions
 {
@@ -10,14 +11,26 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
     CharacterController cc;
     ThirdPersonInputs inputs;
     PlayerHealthCon ph;
+    WeaponShootScript ws;
+    AttackEffect ae;
+    public SaveMenuManager saveMenuManager;
 
-    Camera mainCamera;
+   Camera mainCamera;
     public Animator anim;
 
     public EnemyController ec;
     
     public Transform WinCondiotionsTransform;
 
+    [SerializeField] private AudioClip deathSound;
+    private AudioSource audioSource;
+    public AudioClip jumpSound;
+    public AudioClip dropSound;
+    public AudioClip attackSound;
+    public AudioClip hitSound;
+    public AudioClip powerUpSound;
+    public AudioClip gameOverSound;
+    public AudioClip walkNoise;
 
     //movement and rotation
     [Header("Movement Variables")]
@@ -36,11 +49,15 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
     private float timeToApex; //max jump time / 2
     private float initialJumpVelocity;
 
+    private float originalJumpHeight;
+    private bool jumpPowerActive = false;
+
     //weapon system variables
     [Header("Weapon Variables")]
     [SerializeField] private Transform weaponAttachPoint;
     [SerializeField] private Transform defenseAttachPoint;
     Weapon weapon = null;
+    
 
     [Header("Weapon Controller")]
     public GameObject SwordPolyart;
@@ -56,6 +73,26 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
 
     public GameObject attackEffectPrefab;
     public float attackEffectDuration = 1.5f;
+
+    [Header("Powerup Variables")]
+    private Vector3 originalScale;
+    private bool isPowerUpActive = false; 
+
+    public float growFactor = 1.5f; 
+    public float shrinkFactor = 0.5f; 
+    public float powerUpDuration = 5f;
+
+
+    public Transform FirePoint;
+    public Transform Enemy;
+    public GameObject projectilePrefab;
+
+    public float projectSpeed = 10f;
+
+    [Header("Save Game")]
+    // to work on
+    private int health;
+    private bool collectWeapon;
 
 
     //Test Variables
@@ -102,31 +139,53 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
         cc = GetComponent<CharacterController>();
         anim = GetComponentInChildren<Animator>();
         ph = GetComponent<PlayerHealthCon>();
+        ws = GetComponent<WeaponShootScript>();
+        ae = GetComponent<AttackEffect>();
+
+        audioSource = GetComponent<AudioSource>();
+        if (!saveMenuManager) saveMenuManager = GetComponentInParent<SaveMenuManager>();
 
         mainCamera = Camera.main;
         InitJump();
+
+        originalScale = transform.localScale;
+        float health = ph.currentHealth;
     }
 
-    private void InitJump()
-    {
-        //fomulas taken from the following video: https://www.youtube.com/watch?v=hG9SzQxaCm8
-        timeToApex = jumpTime / 2;
-        gravity = (-2 * jumpHeight) / Mathf.Pow(timeToApex, 2);
-        initialJumpVelocity = -(gravity * timeToApex);
-    }
 
     private void OnApplicationFocus(bool focus)
     {
-        if (!focus) Cursor.lockState = CursorLockMode.None;
-        Cursor.lockState = CursorLockMode.Locked;
+        //if (saveMenuManager.gamePaused)
+        //{
+        //    Cursor.lockState = CursorLockMode.None;
+        //    focus = false;
+        //}
+
+        //else
+        //{
+        //    Cursor.lockState = CursorLockMode.Locked;
+        //    focus = true;
+        //}
+
+        //if (!focus) Cursor.lockState = CursorLockMode.None;
+        //Cursor.lockState = CursorLockMode.Locked;
+
     }
     #endregion
     #region Input
     public void OnJump(InputAction.CallbackContext context) => isJumpPressed = context.ReadValueAsButton();
+
+    public void OnPause(InputAction.CallbackContext context)
+    {
+        if (context.performed) saveMenuManager.PauseGame();
+    }
+
     public void OnMove(InputAction.CallbackContext ctx)
     {
         if (ctx.performed) direction = ctx.ReadValue<Vector2>();
         if (ctx.canceled) direction = Vector2.zero;
+        audioSource.PlayOneShot(walkNoise, 0.1f);
+
     }
 
     public void OnDropWeapon(InputAction.CallbackContext context)
@@ -134,11 +193,12 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
         if (weapon)
         {
             weapon.Drop(GetComponent<Collider>(), transform.forward);
+            audioSource.PlayOneShot(dropSound);
             weapon = null;
         }
     }
 
-    public void OnAttack(InputAction.CallbackContext context)
+    public virtual void OnAttack(InputAction.CallbackContext context)
     {
         if (CanAttack)
         {
@@ -146,11 +206,14 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
             if (anim.GetCurrentAnimatorClipInfo(0)[0].clip.name.Contains("Attack")) return;
             isAttacking = true;
             if (weapon) anim.SetTrigger("Attack");
-            attackEffect.SetActive(true);
-            if(attackEffect) Debug.Log("effect is active");
-
-
-
+            if(isAttacking)
+            {
+                attackEffect.SetActive(true);
+                if (attackEffect) Debug.Log("effect is active");
+                audioSource.PlayOneShot(attackSound);
+            }
+            //attackEffect.SetActive(true);
+            //if(attackEffect) Debug.Log("effect is active");
 
             //if (attackObjectPrefab && attackSpawnPoint)
             //{
@@ -173,9 +236,11 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
 
         //Animator anim = DogPolyart.GetComponent<Animator>();
         //anim.SetTrigger("Attack");
-        GameObject attackEffect = Instantiate(attackEffectPrefab, SwordPolyart.transform.position, Quaternion.identity);
 
+        GameObject attackEffect = Instantiate(attackEffectPrefab, SwordPolyart.transform.position, Quaternion.identity);
+        //ae.ActivateEffect();
         Destroy(attackEffect, attackEffectDuration);
+        //ae.DeactivateEffect();
         StartCoroutine(ResetAttackCooldown());
     }
 
@@ -196,9 +261,30 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
     {
         if (anim.GetCurrentAnimatorClipInfo(0)[0].clip.name.Contains("Defend")) return;
 
-        if (weapon) anim.SetTrigger("Defend");
+        if (weapon)
+        { 
+            anim.SetTrigger("Defend");
+
+           // fireAttack();
+        }
         //throw new NotImplementedException();
     }
+
+    //public void fireAttack()
+    //{
+    //    Debug.Log("Fire Triggered");
+    //    if (projectilePrefab != null && FirePoint != null)
+    //    {
+    //        GameObject projectile = Instantiate(projectilePrefab, FirePoint.position, Quaternion.identity);
+
+    //        Vector3 direction = (Enemy.position - FirePoint.position).normalized;
+    //        Rigidbody rb = projectile.GetComponent<Rigidbody>();
+    //        if (rb != null)
+    //        {
+    //            rb.linearVelocity = direction * projectSpeed;
+    //        }
+    //    }
+    //}
     #endregion
     #region Player Movement
     private Vector3 ProjectedMoveDirection()
@@ -242,11 +328,7 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
         }
     }
 
-    private float CheckJump()
-    {
-        if (isJumpPressed) return initialJumpVelocity;
-        return -cc.minMoveDistance;
-    }
+   
     #endregion
 
     void Update()
@@ -263,6 +345,29 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
         {
             Debug.Log(hitInfo);
         }
+    }
+    public void winCondition()
+    {
+        audioSource.PlayOneShot(gameOverSound);
+        SceneManager.LoadScene("WinScreen");
+    }
+
+
+    private void InitJump()
+    {
+        //fomulas taken from the following video: https://www.youtube.com/watch?v=hG9SzQxaCm8
+        timeToApex = jumpTime / 2;
+        gravity = (-2 * jumpHeight) / Mathf.Pow(timeToApex, 2);
+        initialJumpVelocity = -(gravity * timeToApex);  
+    }
+    private float CheckJump()
+    {
+        if (isJumpPressed)
+        {
+            audioSource.PlayOneShot(jumpSound);
+                return initialJumpVelocity;
+        }
+        return -cc.minMoveDistance;
     }
 
     private void FixedUpdate()
@@ -345,12 +450,11 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
 
             Debug.Log("Collided with EnemyProjectile");
             ph.TakeDamage(30f);
+            audioSource.PlayOneShot(hitSound);
             //anim.SetTrigger("getHit");
             //canMove = false;
             //velocity = Vector3.zero;
-
         }
-        
 
         if (collision.gameObject/*collider*/.CompareTag("playerAttack"))
         {
@@ -361,11 +465,104 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
             //state = EnemyState.Death; // Set the enemy state to Death
 
         }
-
-
-
         //Destroy(gameObject);
     }
+
+    public void healPlayer()
+    {
+        ph.Heal(20f);
+        audioSource.PlayOneShot(powerUpSound);
+    }
+
+    public void growPowerUp()
+    {
+        if (!isPowerUpActive)
+        {
+            StartCoroutine(shrinkPower());
+            audioSource.PlayOneShot(powerUpSound);
+        }
+    }
+    public void shrinkPowerUp()
+    {
+        if (!isPowerUpActive)
+        {
+            StartCoroutine(growPower());
+            audioSource.PlayOneShot(powerUpSound);
+        }
+    }
+
+    private IEnumerator shrinkPower()
+    {
+        isPowerUpActive = true;
+
+        transform.localScale = originalScale * shrinkFactor;
+
+        yield return new WaitForSeconds(powerUpDuration);
+
+        transform.localScale = originalScale;
+
+        isPowerUpActive = false;
+    }
+
+    private IEnumerator growPower()
+    {
+        isPowerUpActive = true;
+
+        transform.localScale = originalScale * growFactor;
+
+        yield return new WaitForSeconds(powerUpDuration);
+
+        transform.localScale = originalScale;
+
+        isPowerUpActive = false;
+    }
+
+    public void SaveGamePrepare()
+    {
+        // Get Player Data Object
+        LoadSaveManager.GameStateData.DataPlayer data = GameManager.StateManager.gameState.player;
+
+        // Fill in player data for save game
+
+        data.collectedWeapon = collectWeapon;   
+        data.health = health;       
+        
+        data.posRotScale.posX = transform.position.x;
+        data.posRotScale.posY = transform.position.y;
+        data.posRotScale.posZ = transform.position.z;
+
+        data.posRotScale.rotX = transform.localEulerAngles.x;
+        data.posRotScale.rotY = transform.localEulerAngles.y;
+        data.posRotScale.rotZ = transform.localEulerAngles.z;
+
+        data.posRotScale.scaleX = transform.localScale.x;
+        data.posRotScale.scaleY = transform.localScale.y;
+        data.posRotScale.scaleZ = transform.localScale.z;
+    }
+
+    public void LoadGameComplete()
+    {
+        // Get Player Data Object
+        LoadSaveManager.GameStateData.DataPlayer data = GameManager.StateManager.gameState.player;
+
+        // Load data back to Player
+        health = data.health;
+
+        // Set position
+        transform.position = new Vector3(data.posRotScale.posX,
+            data.posRotScale.posY, data.posRotScale.posZ);
+
+        // Set rotation
+        transform.localRotation = Quaternion.Euler(data.posRotScale.rotX,
+            data.posRotScale.rotY, data.posRotScale.rotZ);
+
+        // Set scale
+        transform.localScale = new Vector3(data.posRotScale.scaleX,
+            data.posRotScale.scaleY, data.posRotScale.scaleZ);
+    }
+
+
+
 
 
 

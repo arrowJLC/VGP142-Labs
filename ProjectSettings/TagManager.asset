@@ -12,6 +12,7 @@ TagManager:
   - FakeWater
   - HitBox
   - playerAttack
+  - Projectile
   layers:
   - Default
   - TransparentFX
